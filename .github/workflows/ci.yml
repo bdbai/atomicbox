@@ -13,6 +13,6 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Run tests against miri
-      run: cargo +nightly-2025-04-20 miri test --verbose
+      run: cargo miri test --verbose
     - name: Check README.md is up to date
       run: cargo install cargo-readme && cargo readme > README.md && git diff --quiet
