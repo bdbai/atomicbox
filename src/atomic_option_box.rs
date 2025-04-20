@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use core::fmt::{self, Debug, Formatter};
 use core::marker::PhantomData;
-use core::mem::forget;
+use core::mem::ManuallyDrop;
 use core::ptr::null_mut;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
@@ -198,8 +198,7 @@ impl<T> AtomicOptionBox<T> {
     ///     assert_eq!(atom.into_inner(), Some(Box::new("hello")));
     ///
     pub fn into_inner(self) -> Option<Box<T>> {
-        let last_ptr = self.ptr.load(Ordering::Acquire);
-        forget(self);
+        let last_ptr = *ManuallyDrop::new(self).ptr.get_mut();
         unsafe { from_ptr(last_ptr) }
     }
 
@@ -209,14 +208,7 @@ impl<T> AtomicOptionBox<T> {
     /// ensures that no other threads can concurrently access either the atomic
     /// pointer field or the boxed data it points to.
     pub fn get_mut(&mut self) -> Option<&mut T> {
-        // I have a convoluted theory that Relaxed is good enough here.
-        // See comment in AtomicBox::get_mut().
-        let ptr = self.ptr.load(Ordering::Relaxed);
-        if ptr.is_null() {
-            None
-        } else {
-            Some(unsafe { &mut *ptr })
-        }
+        unsafe { self.ptr.get_mut().as_mut() }
     }
 }
 
@@ -224,9 +216,9 @@ impl<T> Drop for AtomicOptionBox<T> {
     /// Dropping an `AtomicOptionBox<T>` drops the final `Box<T>` value (if
     /// any) stored in it.
     fn drop(&mut self) {
-        let last_ptr = self.ptr.load(Ordering::Acquire);
+        let last_ptr = *self.ptr.get_mut();
         unsafe {
-            from_ptr(last_ptr);
+            drop(from_ptr(last_ptr));
         }
     }
 }

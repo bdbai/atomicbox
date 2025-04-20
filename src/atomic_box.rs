@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use core::fmt::{self, Debug, Formatter};
 use core::marker::PhantomData;
-use core::mem::forget;
+use core::mem::ManuallyDrop;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
@@ -135,8 +135,7 @@ impl<T> AtomicBox<T> {
     ///     assert_eq!(atom.into_inner(), Box::new("hello"));
     ///
     pub fn into_inner(self) -> Box<T> {
-        let last_ptr = self.ptr.load(Ordering::Acquire);
-        forget(self);
+        let last_ptr = *ManuallyDrop::new(self).ptr.get_mut();
         unsafe { Box::from_raw(last_ptr) }
     }
 
@@ -146,24 +145,16 @@ impl<T> AtomicBox<T> {
     /// that no other threads can concurrently access either the atomic pointer field
     /// or the boxed data it points to.
     pub fn get_mut(&mut self) -> &mut T {
-        // Relaxed suffices here because this thread must already have
-        // rendezvoused with any other thread that's been modifying shared
-        // data, and executed an Acquire barrier, in order for the caller to
-        // have a `mut` reference.  Symmetrically, no barrier is needed when
-        // the reference expires, because this thread must rendezvous with
-        // other threads, and execute a Release barrier, before this AtomicBox
-        // becomes shared again.
-        let ptr = self.ptr.load(Ordering::Relaxed);
-        unsafe { &mut *ptr }
+        unsafe { &mut **self.ptr.get_mut() }
     }
 }
 
 impl<T> Drop for AtomicBox<T> {
     /// Dropping an `AtomicBox<T>` drops the final `Box<T>` value stored in it.
     fn drop(&mut self) {
-        let last_ptr = self.ptr.load(Ordering::Acquire);
+        let last_ptr = *self.ptr.get_mut();
         unsafe {
-            Box::from_raw(last_ptr);
+            drop(Box::from_raw(last_ptr));
         }
     }
 }
