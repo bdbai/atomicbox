@@ -1,0 +1,43 @@
+error[E0277]: `Rc<&str>` cannot be sent between threads safely
+  --> tests/compile-fail/send_rc.rs:9:37
+   |
+9  |       let handle = std::thread::spawn(move || {
+   |  __________________------------------_^
+   | |                  |
+   | |                  required by a bound introduced by this call
+10 | |         //~^ ERROR `Rc<&str>` cannot be sent between threads safely
+11 | |         let value = *abox.into_inner();
+12 | |         println!("Other thread: {:?}", value);
+13 | |     });
+   | |_____^ `Rc<&str>` cannot be sent between threads safely
+   |
+   = help: the trait `Send` is not implemented for `Rc<&str>`
+   = note: required for `Unique<Rc<&str>>` to implement `Send`
+note: required because it appears within the type `Box<Rc<&str>>`
+  --> $RUST/alloc/src/boxed.rs
+   |
+   | pub struct Box<
+   |            ^^^
+note: required because it appears within the type `PhantomData<Box<Rc<&str>>>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: ?Sized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `AtomicBox<Rc<&str>>`
+  --> src/atomic_box.rs
+   |
+   | pub struct AtomicBox<T> {
+   |            ^^^^^^^^^
+note: required because it's used within this closure
+  --> tests/compile-fail/send_rc.rs:9:37
+   |
+9  |     let handle = std::thread::spawn(move || {
+   |                                     ^^^^^^^
+note: required by a bound in `spawn`
+  --> $RUST/std/src/thread/mod.rs
+   |
+   | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+   |        ----- required by a bound in this function
+...
+   |     F: Send + 'static,
+   |        ^^^^ required by this bound in `spawn`

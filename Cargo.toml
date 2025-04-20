@@ -12,4 +12,4 @@ repository = "https://github.com/jorendorff/atomicbox"
 [dependencies]
 
 [dev-dependencies]
-compiletest_rs = "0.7.1"
+trybuild = "1.0"

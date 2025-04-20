@@ -1,5 +1,3 @@
-extern crate atomicbox;
-
 use atomicbox::AtomicBox;
 use std::rc::Rc;
 
